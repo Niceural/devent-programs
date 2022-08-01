@@ -27,5 +27,11 @@ describe("devent", () => {
     });
   });
 
-  describe("create_event()", () => {});
+  describe("create_event()", () => {
+    it("throws an exception if StateAccount is not created", async () => {});
+    it("assigns data correctly", async () => {});
+  });
+  describe("attendee_registers()", () => {
+    it("does not transfer lamports if Pubkey is already registered", async () => {});
+  });
 });

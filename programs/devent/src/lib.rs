@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token};
+use std::mem::size_of;
 use std::collections::HashMap;
 
 declare_id!("59sCeP718NpdHv3Xj6kjgrmGNEt67BNXFcy5VUBUDhJE");
@@ -20,7 +21,6 @@ pub mod devent {
         Ok(())
     }
 
-    /*
     pub fn create_event(
         ctx: Context<CreateEvent>,
         max_attendees: u64,
@@ -31,15 +31,17 @@ pub mod devent {
         // get event
         let event = &mut ctx.accounts.event;
         event.authority = ctx.accounts.authority.key();
-        event.event_id = state.event_count;
-        event.max_attendees = max_attendees;
-        event.number_of_attendees = 0;
-        event.min_price = min_price;
+        event.max_registered = max_attendees;
+        event.amount_registered = 0;
+        event.min_lamports = min_price;
+        event.attendees = HashMap::new();
+        event.index = state.event_count;
 
         state.event_count += 1;
         Ok(())
     }
 
+    /*
     pub fn attendee_registers(
         ctx: Context<AttendeeRegisters>,
     ) -> Result<()> {
@@ -74,14 +76,13 @@ pub struct CreateState<'info> {
     // pub token_program: Program<'info, Token>,
 }
 
-/*
 #[derive(Accounts)]
 pub struct CreateEvent<'info> {
     // authenticate state account
     #[account(
         mut,
-        seeds = [b"state".as_ref()],
-        bump,
+        // seeds = [b"state".as_ref()],
+        // bump,
     )]
     pub state: Account<'info, StateAccount>,
 
@@ -103,6 +104,7 @@ pub struct CreateEvent<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/*
 #[derive(Accounts)]
 pub struct AttendeeRegisters<'info> {
     #[account(
@@ -135,9 +137,8 @@ impl StateAccount {
     const LEN: usize = 32 + 64;
 }
 
-/*
 #[account]
-pub struct Event{
+pub struct EventAccount {
     pub authority: Pubkey, // event organizer
     pub index: u64, // given by the StateAccount
     pub max_registered: u64, // maximum number of Pubkeys allowed to register
@@ -146,7 +147,7 @@ pub struct Event{
     pub attendees: HashMap<Pubkey, Status>, // mapping of PubKeys to not registered, registered, attended
 }
 
-impl Event {
+impl EventAccount {
     const LEN: usize = 32 + 64 + 64 + 64 + 64 + size_of::<HashMap<Pubkey, Status>>();
 }
 
@@ -162,4 +163,3 @@ pub enum ErrorCode {
     #[msg("Event at maximum capacity")]
     MaxCapacity,
 }
-*/
