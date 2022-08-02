@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token};
+// use anchor_spl::token::{self, Token};
 use std::mem::size_of;
 use std::collections::HashMap;
 
 declare_id!("59sCeP718NpdHv3Xj6kjgrmGNEt67BNXFcy5VUBUDhJE");
+
+const METADATA_URL_LENGTH: usize = 255;
 
 #[program]
 pub mod devent {
@@ -23,15 +25,21 @@ pub mod devent {
 
     pub fn create_event(
         ctx: Context<CreateEvent>,
+        metadata_url: String,
         max_attendees: u64,
         min_price: u64,
     ) -> Result<()> {
+        if METADATA_URL_LENGTH < metadata_url.len() {
+            return Err(ErrorCode::InvalidUrl.into());
+        }
+
         // get state
         let state = &mut ctx.accounts.state;
         // get event
         let event = &mut ctx.accounts.event;
         event.authority = ctx.accounts.authority.key();
-        event.max_registered = max_attendees;
+        event.metadata_url = metadata_url;
+        event.registration_limit = max_attendees;
         event.amount_registered = 0;
         event.min_lamports = min_price;
         event.attendees = HashMap::new();
@@ -100,8 +108,8 @@ pub struct CreateEvent<'info> {
     pub authority: Signer<'info>,
     /// System program
     pub system_program: UncheckedAccount<'info>,
-    #[account(constraint = token_program.key == &token::ID)]
-    pub token_program: Program<'info, Token>,
+    // #[account(constraint = token_program.key == &token::ID)]
+    // pub token_program: Program<'info, Token>,
 }
 
 /*
@@ -141,14 +149,15 @@ impl StateAccount {
 pub struct EventAccount {
     pub authority: Pubkey, // event organizer
     pub index: u64, // given by the StateAccount
-    pub max_registered: u64, // maximum number of Pubkeys allowed to register
+    pub metadata_url: String, // event metadata url
+    pub registration_limit: u64, // maximum number of Pubkeys allowed to register
     pub amount_registered: u64, // amount of Pubkeys currently registered
     pub min_lamports: u64, // minimum registration price in lamports
     pub attendees: HashMap<Pubkey, Status>, // mapping of PubKeys to not registered, registered, attended
 }
 
 impl EventAccount {
-    const LEN: usize = 32 + 64 + 64 + 64 + 64 + size_of::<HashMap<Pubkey, Status>>();
+    const LEN: usize = 32 + 64 + 64 + 64 + 64 + size_of::<HashMap<Pubkey, Status>>() + METADATA_URL_LENGTH;
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -162,4 +171,6 @@ pub enum Status {
 pub enum ErrorCode {
     #[msg("Event at maximum capacity")]
     MaxCapacity,
+    #[msg("Metadata URL is too long")]
+    InvalidUrl,
 }

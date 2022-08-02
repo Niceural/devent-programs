@@ -2,7 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import { assert } from "chai";
 import { Devent } from "../../target/types/devent";
 
-describe("devent", () => {
+describe("devent unit tests", () => {
   const provider = anchor.AnchorProvider.env();
   const wallet = provider.wallet as anchor.Wallet;
   anchor.setProvider(provider);
