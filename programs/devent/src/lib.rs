@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-// use anchor_spl::token::{self, Token};
+use anchor_spl::token::{self, Token};
 use std::mem::size_of;
-use std::collections::HashMap;
+use std::collections::{BTreeMap};
 
 declare_id!("59sCeP718NpdHv3Xj6kjgrmGNEt67BNXFcy5VUBUDhJE");
 
@@ -41,27 +41,29 @@ pub mod devent {
         event.metadata_url = metadata_url;
         event.registration_limit = max_attendees;
         event.amount_registered = 0;
-        event.min_lamports = min_price;
-        event.attendees = HashMap::new();
+        event.min_lamports_price = min_price;
         event.index = state.event_count;
 
         state.event_count += 1;
         Ok(())
     }
 
-    /*
     pub fn attendee_registers(
         ctx: Context<AttendeeRegisters>,
     ) -> Result<()> {
         let event = &mut ctx.accounts.event;
-        if event.number_of_attendees >= event.max_attendees {
+        if event.amount_registered > event.registration_limit {
             return Err(ErrorCode::MaxCapacity.into())
         }
-        event.number_of_attendees += 1;
-        event.attendees.insert(ctx.accounts.authority.key(), true);
+
+        let registration = &mut ctx.accounts.registration;
+        registration.authority = ctx.accounts.authority.key();
+        registration.status = Status::Registered;
+        registration.index = event.amount_registered;
+
+        event.amount_registered += 1;
         Ok(())
     }
-    */
 }
 
 #[derive(Accounts)]
@@ -69,19 +71,20 @@ pub struct CreateState<'info> {
     // authenticating state account
     #[account(
         init,
-        // seeds = [b"state".as_ref()],
-        // bump,
+        seeds = [b"state".as_ref()],
+        bump,
         payer = authority,
-        space = StateAccount::LEN,
+        space = StateAccount::LEN + 8,
     )]
     pub state: Account<'info, StateAccount>,
     // authority (signer who paid transaction fee)
     #[account(mut)]
     pub authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
+    /// CHECK: System program
+    pub system_program: UncheckedAccount<'info>,
     // Token program (no clue what it is)
-    // #[account(constraint = token_program.key == &token::ID)]
-    // pub token_program: Program<'info, Token>,
+    #[account(constraint = token_program.key == &token::ID)]
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -89,8 +92,8 @@ pub struct CreateEvent<'info> {
     // authenticate state account
     #[account(
         mut,
-        // seeds = [b"state".as_ref()],
-        // bump,
+        seeds = [b"state".as_ref()],
+        bump,
     )]
     pub state: Account<'info, StateAccount>,
 
@@ -106,34 +109,41 @@ pub struct CreateEvent<'info> {
     // authority (signer who pays transaction fee)
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// System program
+    /// CHECK: System program
     pub system_program: UncheckedAccount<'info>,
-    // #[account(constraint = token_program.key == &token::ID)]
-    // pub token_program: Program<'info, Token>,
+    #[account(constraint = token_program.key == &token::ID)]
+    pub token_program: Program<'info, Token>,
 }
 
-/*
 #[derive(Accounts)]
 pub struct AttendeeRegisters<'info> {
     #[account(
         mut,
-        seeds = [b"event".as_ref(), event.event_id.to_be_bytes().as_ref()],
+        seeds = [b"event".as_ref(), event.index.to_be_bytes().as_ref()],
         bump
     )]
     pub event: Account<'info, EventAccount>,
+
+    #[account(
+        init,
+        seeds = [b"registration".as_ref(), event.index.to_be_bytes().as_ref(), event.amount_registered.to_be_bytes().as_ref()],
+        bump,
+        payer = authority,
+        space = RegistrationAccount::LEN,
+    )]
+    pub registration: Account<'info, RegistrationAccount>,
 
     // Authority (signer who paid transaction fee)
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    /// System program
+    /// CHECK: System program
     pub system_program: UncheckedAccount<'info>,
 
     // Token program
     #[account(constraint = token_program.key == &token::ID)]
     pub token_program: Program<'info, Token>,
 }
-*/
 
 #[account]
 pub struct StateAccount {
@@ -152,12 +162,22 @@ pub struct EventAccount {
     pub metadata_url: String, // event metadata url
     pub registration_limit: u64, // maximum number of Pubkeys allowed to register
     pub amount_registered: u64, // amount of Pubkeys currently registered
-    pub min_lamports: u64, // minimum registration price in lamports
-    pub attendees: HashMap<Pubkey, Status>, // mapping of PubKeys to not registered, registered, attended
+    pub min_lamports_price: u64, // minimum registration price in lamports
 }
 
 impl EventAccount {
-    const LEN: usize = 32 + 64 + 64 + 64 + 64 + size_of::<HashMap<Pubkey, Status>>() + METADATA_URL_LENGTH;
+    const LEN: usize = 32 + 64 + 64 + 64 + 64 + METADATA_URL_LENGTH;
+}
+
+#[account]
+pub struct RegistrationAccount {
+    pub authority: Pubkey,
+    pub index: u64,
+    pub status: Status,
+}
+
+impl RegistrationAccount {
+    const LEN: usize = 32 + 64 + size_of::<Status>();
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]

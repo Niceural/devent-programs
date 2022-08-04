@@ -1,6 +1,6 @@
 import * as anchor from "@project-serum/anchor";
 import { assert } from "chai";
-import { Devent } from "../../target/types/devent";
+import { Devent } from "../target/types/devent";
 
 describe("devent unit tests", () => {
   const provider = anchor.AnchorProvider.env();
